@@ -1,9 +1,9 @@
 ---
 title: "Predicting Economic Growth: An Analysis of GDP Drivers with Penalized Regression"
 author: |
-  | Name 1 (xx%), Name 2 (xx%)
-  | Name 3 (xx%), Name 4 (xx%)
-date: "Month, 2024"
+  | Michael van Walsum 756104 (25%), Aleksandra Tatko 648925 (25%)
+  | Stijn Hooijman 620083 (25%), Francesco Di Presa 771382 (25%)
+date: "September, 2025"
 header-includes:
   - \usepackage{booktabs}
   - \usepackage{makecell}
@@ -19,78 +19,108 @@ bibliography: references.bib
 
 # 1. Executive Summary
 
-This report aims at exploring whether one can predict the growth of a country’s GDP, given a set of economic and demographic variables. The main objective is to identify which factors and modeling approaches provide the most reliable predictions of GDP growth. If a country wants to borrow money to stimulate growth through increased spending, it may be helpful to understand what factors drive economic growth, as expressed in terms of GDP. After preparing the data and conducting descriptive analysis, this report will mostly explore the varying explanatory power of different regression methods and provide reasoning as to why penalised regression techniques such as LASSO and Ridge regression are the most suitable method for this data. Finally, the report will conclude with the best model for predicting annual % GDP growth, as well as outline some interesting data limitations and considerations when working with penalised regression.
-
-The report concludes that Traditional regression (OLS) has weak explanatory power for this data set. Non-linear effects modestly improved diagnostics but overall, penalised regressions (LASSOO, Ridge and Elastic Net) provided more stable models through variable selection. Finally, we conclude that a logistic extension using a binary variable gives practical classification insights.
+This report aims at exploring whether one can predict the growth of a country’s GDP, given a set of economic and demographic variables. The main objective is to identify which modeling approaches provide the most reliable predictions of GDP growth. If a country wants to borrow money to stimulate growth through increased spending, it may be helpful to understand what factors drive economic growth, as expressed in terms of GDP. After preparing the data and conducting descriptive analysis, this report will mostly explore the varying explanatory power of different regression methods and provide reasoning as to why penalised regression techniques such as LASSO and Ridge regression are the most suitable method for this data. Finally, the report will conclude with the best model for predicting annual % GDP growth, as well as outline some interesting data limitations and considerations when working with penalised regression. The report concludes that Traditional regression (OLS) has weak explanatory power for this data set. Non-linear effects modestly improved diagnostics but overall, penalised regressions (LASSO, Ridge and Elastic Net) provided more stable models through variable selection. Finally, we conclude that a logistic extension using a binary variable gives practical classification insights.
 
 # 2. Data, Variable Section and Methodology
 
 ### 2.1 Variable Selection
 
-In the report, the models are created using a selection of 74 variables, across 150 instances, corresponding to different countries. Our first linear regression was performed with the following chosen variables: gdp per capita (PPP), net trade, unemployment, age dependency, urban percentage of population, life expectancy of females, tax payments, population growth and the main dependent variable: gdp growth. However, later in the report, penalised regression uses all variables. We selected these variables as they capture key economic, demographic, and structural drivers of growth, consistent with the literature (Appendix XXX). GDP per capita was included as Barro (1991) shows that poorer countries tend to grow faster. Demographic measures such as the age dependency ratio and population growth reflect labor force dynamics, with Bloom and Williamson (1998) linking favorable demographics to higher growth. Urban population shares, highlighted by Henderson (2003), capture the role of agglomeration, while trade openness has been shown by Frankel and Romer (2003) to foster growth. Finally, female life expectancy serves as a proxy for overall health outcomes, which Bloom, Canning, and Sevilla (2004) associate with stronger long-run growth.
+In the report, the models are created using a selection of 74 variables, across 150 instances, corresponding to different countries. Our first linear regression was performed with the following chosen variables: gdp per capita (PPP), net trade, unemployment, age dependency, urban percentage of population, life expectancy of females, tax payments, population growth and the main dependent variable: gdp growth. However, later in the report, penalised regression uses all variables. We selected the initial regression variables as they capture key economic, demographic, and structural drivers of growth, consistent with current literature. GDP per capita was included as @Barro1991 shows that poorer countries tend to grow faster. Demographic measures such as the age dependency ratio and population growth reflect labor force dynamics, with @BloomWilliamson1998 linking favorable demographics to higher growth. Urban population percentage, highlighted by @Henderson2003, drives productivity, while trade openness has been shown by @FrankelRomer1999 to foster growth. Finally, female life expectancy serves as a proxy for overall health outcomes, which @BloomCanningSevilla2004 associate with stronger long-run growth.
+
+$$
+\begin{aligned}
+y_i = \; & \beta_0 
++ \beta_1 \,\text{GDP per capita (PPP)} 
++ \beta_2 \,\text{Unemployment} 
++ \beta_3 \,\text{Age dependency} \\
+& + \beta_4 \,\text{Unemployment}^2
++ \beta_5 \,\text{Urban population} 
++ \beta_6 \,\text{Life expectancy (female)} \\
+& + \beta_7 \,\text{Population growth} 
++ \beta_8 \,\text{Tax payments} 
++ \varepsilon_i
+\end{aligned}
+$$
+
+*Formula 1.* Baseline linear specification for GDP growth as a function of income, unemployment (quadratic), demographics, urbanization, health, population growth, and tax burden.
 
 ### 2.2 Methodology
 
-We began by running linear regressions (OLS) as a baseline, because it is simple, transparent, and provides a benchmark for comparison. We ran 2 different linear regressions, one that included net trade (model B), and one without (model A). 
-
-(We tested models with and without Net Trade because, while trade is a key component of GDP in theory (exports minus imports), our descriptive statistics showed extreme outliers (e.g. major oil exporters) that risk distorting its explanatory power for most countries. (Figure X, Appendix) <- put the outliers graph in the appendix. ) <- not sure if we have to add it
-
-We extended Model A by adding a nonlinear effect of unemployment, since labor market conditions are a key driver of growth and their impact is not linear—for example, a 1% increase in unemployment may have very different effects on GDP growth at 4% compared to 25%.
-
-Next, we applied penalized regression: LASSO, Ridge, and Elastic Net. These methods reduce noise, handle correlated predictors, and avoid overfitting by shrinking or eliminating weak variables. We split the dataset into 110 training and 40 test observations to balance training strength with reliable out-of-sample evaluation.
-
-We posed one final question with the data, and ran a Logistic Ridge regression with a binary growth indicator to test whether we could more usefully classify countries as growing above or below a practical threshold (2.7%) instead of predicting exact growth rates. This approach is often more practical for policy or lending decisions, where a clear yes/no signal is easier to act on than a precise forecast.
-
+We began by running linear regressions (OLS) as a baseline, because it is simple, transparent, and provides a benchmark for comparison. We ran 2 different linear regressions, one that included net trade, and one without. We tested models with and without Net Trade because, while trade is a key component of GDP in theory (exports minus imports), our descriptive statistics showed extreme outliers (e.g. major oil exporters) that risk distorting its explanatory power for most countries. (Figure 1, Appendix 1) We extended Model A by adding a nonlinear effect of unemployment, since labor market conditions are a key driver of growth and their impact is not linear—for example, a 1% increase in unemployment may have very different effects on GDP growth at 4% compared to 25%. Next, we applied penalized regression: LASSO, Ridge, and Elastic Net. These methods reduce noise, handle correlated predictors, and avoid overfitting by shrinking or eliminating weak variables. We split the dataset into 110 training and 40 test observations to balance training strength with reliable out-of-sample evaluation. We posed one final question with the data, and ran a Logistic Ridge regression with a binary growth indicator to test whether we could more usefully classify countries as growing above or below a practical threshold (2.7%) instead of predicting exact growth rates. This approach is often more practical for policy or lending decisions, where a clear yes/no signal is easier to act on than a precise forecast.
 
 # 3. Results
+
 ### 3.1 Baseline Linear Regression
 
-Our initial baseline regression without Net Trade (Model A, adj. R² = 0.0138) (Table X, Appendix <- coef from OLS model a) performed slightly better than the model with Net Trade (Model B, adj. R² = 0.0072) (Table X, Appendix <- coef from OLS model b). This shows that Net Trade added noise rather than useful insight, so we dropped it from further analysis. 
-We then extended Model A by including a squared term for unemployment. This improved the model’s adjusted R² to 0.0323, with unemployment and its squared term appearing marginally significant (Appendix XX, Model C). However, the overall explanatory power of the OLS model remained weak, with most other predictors statistically insignificant. As shown in Appendix Figure X (6 graphs with the LR between predictors and dependent v), none of the predictors exhibit a strong individual relationship with GDP growth. At the same time, standard validation checks confirmed the model did not suffer from major violations (Appendix X <- validation checks), so the issue lay not in misspecified assumptions but in the lack of predictive strength of the variables. 
-For this reason, we moved beyond OLS and applied penalized regression techniques such as LASSO. Unlike OLS, LASSO penalizes weak predictors, shrinking some coefficients to zero. This allowed us to test whether any of our pre-selected variables were truly robust drivers of GDP growth, while filtering out noise and improving out-of-sample reliability.
-
+Our initial baseline regression without Net Trade (Model A, adj. R² = 0.0138) (Table 1, Appendix 2.1) performed slightly better than the model with Net Trade (Model B, adj. R² = 0.0072) (Table 2, Appendix 2.2). This shows that Net Trade added noise rather than useful insight, so we dropped it from further analysis. We then extended Model A by including a squared term for unemployment. This improved the model’s adjusted R² to 0.0323, with unemployment and its squared term appearing marginally significant (Model C, Table 3, Appendix 2.3). However, the overall explanatory power of the OLS model remained weak, with most other predictors statistically insignificant. As shown in Appendix 2.4, none of the predictors exhibit a strong individual relationship with GDP growth. At the same time, standard validation checks confirmed the model did not suffer from major violations (Appendix 2.5), so the issue lay not in misspecified assumptions but in the lack of predictive strength of the variables. For this reason, we moved beyond OLS and applied penalized regression techniques such as LASSO. Unlike OLS, LASSO penalizes weak predictors, shrinking some coefficients to zero. This allowed us to test whether any of our pre-selected variables were truly robust drivers of GDP growth, while filtering out noise and improving out-of-sample reliability.
 
 ### 3.2 Lasso Penalised Regression
 
-We applied a 10-fold cross-validated LASSO regression to identify the most relevant predictors of GDP growth. Two solutions emerged from the cross-validation process. At the minimum penalty level (lamba.min = 0.2740), the model retained two predictors—GDP per capita (PPP) and unemployment—suggesting these have modest predictive power. At the more conservative penalty (lambda.1se = 0.6329), however, all coefficients were shrunk to zero, suggesting that none of the predictors added robust explanatory power across folds. 
-(In practical terms, lambda is the penalty strength: higher values shrink coefficients more strongly, reducing noise but also removing weaker signals. Looking at both lambda.min and lambda.1se is standard practice. lambda.min gives the “best fit” inside the training data but risks overfitting, while lambda.1se offers a simpler, more conservative model that generalizes better.) <- add it if we have enough space (optional)
-Compared to Model C, the coefficients from LASSO were notably smaller. This is expected, since LASSO imposes a penalty on coefficient size to prevent overfitting, which both shrinks estimates and can set uninformative predictors to exactly zero.
-Finally, it is important to note that all predictors were standardized before applying LASSO, so that differences in scale (e.g., GDP per capita in dollars vs. unemployment in percentages) did not distort the penalization process. Without standardization, variables measured on larger scales would be penalized less, biasing variable selection.
-Overall, LASSO confirmed that only income levels and labor market conditions carry rather weak signals for GDP growth, while most other predictors appear irrelevant in this dataset.
+We applied a 10-fold cross-validated LASSO regression to identify the most relevant predictors of GDP growth. Two solutions emerged from the cross-validation process. At the minimum penalty level (lambda.min = 0.2740), the model retained two predictors—GDP per capita (PPP) and unemployment—suggesting these have modest predictive power. At the more conservative penalty (lambda.1se = 0.6329), however, all coefficients were shrunk to zero, suggesting that none of the predictors added robust explanatory power across folds (Table 4, Appendix 3.1). In practical terms, lambda (lambda) is the penalty strength: higher values shrink coefficients more strongly, reducing noise but also removing weaker signals. Looking at both lambda.min and lambda.1se is standard practice. lambda.min gives the “best fit” inside the training data but risks overfitting, while lambda.1se offers a simpler, more conservative model that generalizes better. Compared to Model C, the coefficients from LASSO were notably smaller. This is expected, since LASSO imposes a penalty on coefficient size to prevent overfitting, which both shrinks estimates and can set uninformative predictors to exactly zero. Finally, it is important to note that all predictors were standardized before applying LASSO, so that differences in scale (e.g, GDP per capita in dollars vs. unemployment in percentages) did not distort the penalization process. Without standardization, variables measured on larger scales would be penalized less, biasing variable selection. Overall, LASSO confirmed that only income levels and labor market conditions carry rather weak signals for GDP growth, while most other predictors appear irrelevant in this dataset.
 
 ### 3.3 Ridge and Elastic Net Regression
 
-After the LASSO, we shifted focus to Ridge and Elastic Net, which keep all predictors and are better suited for capturing joint effects across many small but correlated variables.
-Using cross-validation, we compared performance at the lambda that minimizes error (lambda.min) and the more conservative 1-SE solution (lambda.1se). The results were clear: the 1-SE models consistently outperformed the lambda.min versions, achieving lower prediction errors (RMSE 2.81 vs. 3.11 for Ridge, and 2.81 vs. 3.02 for Elastic Net). At the 1-SE level, Ridge kept all predictors with small effects, while Elastic Net went further by dropping the weakest ones and keeping only a smaller, more meaningful subset.
-In our dataset, Elastic Net selected an alpha close to zero, effectively behaving like Ridge, which suggests that GDP growth here is shaped by many small, correlated drivers rather than a few dominant ones. The consistent negative signs on unemployment variables reinforce their role as headwinds to growth, while other coefficients remain small. Full coefficient tables are provided in the Appendix XX.
-These results highlight the importance of selecting lambda carefully: more penalization often produces models that are simpler and more robust out of sample. Choosing lambda solely to minimize cross-validation error can lead to overfitting, because Ridge and Elastic Net estimate lambda based only on the training data. This may result in a model that predicts the training outcomes very accurately but performs poorly on new, unseen data. The 1-SE rule mitigates this risk by selecting a slightly larger, more conservative lambda within one standard error of the minimum, which shrinks the coefficients further. This reduces the tendency of the model to fit the training data too closely, improving generalization and predictive performance. Consequently, it is good practice to evaluate both the lambda that minimizes cross-validation error and the lambda suggested by the 1-SE rule.
-Finally, there are a number of reasons why running a penalised regression is more useful than multiple linear regression. Firstly, penalised regression tackles the problem of multicollinearity. In economic data, predictors are often correlated. OLS struggles with this and predictor significance can change dramatically when variables are added or dropped. Penalised regression handles this by stabilising estimates by shrinking coefficients toward zero. Penalised regression also counters overfitting risk. Regularisation penalises ‘noisy’ predictors meaning results are more reliable out-of-sample. Additionally, allowing LASSO to choose for significant variables and Ridge to reduce insignificant predictors impact, there can be consistency in variable selection making the model more robust and reproducible than if this selection was done manually.
+After the LASSO, we shifted focus to Ridge and Elastic Net, which keep all predictors and are better suited for capturing joint effects across many small but correlated variables. Using cross-validation, we compared performance at the lambda that minimizes error (lambda.min) and the more conservative 1-SE solution (lambda.1se). The results were clear: the 1-SE models consistently outperformed the lambda.min versions, achieving lower prediction errors (RMSE 2.81 vs. 3.11 for Ridge, and 2.81 vs. 3.02 for Elastic Net) (Figure 1). At the 1-SE level, Ridge kept all predictors with small effects, while Elastic Net went further by dropping the weakest ones and keeping only a smaller, more meaningful subset.
 
+```{r confusion-table, echo=FALSE, message=FALSE, warning=FALSE}
+library(kableExtra)
+
+# Build a confusion matrix summary table
+conf_results <- tibble::tibble(
+  Model    = c("Ridge (lambda.min)", "Ridge (lambda.1se)"),
+  TN       = c(11, 11),
+  FP       = c(3, 3),
+  FN       = c(6, 8),
+  TP       = c(20, 18),
+  Accuracy = c(0.775, 0.725)
+)
+
+knitr::kable(
+  conf_results,
+  digits  = 3,
+  align   = c("l", rep("c", ncol(conf_results) - 1))
+) %>%
+  kableExtra::kable_styling(full_width = FALSE, position = "center", latex_options = "hold_position")
+```
+
+*Table 1.* Comparison between Ridge models using minimum Lambda and 1-Se Lambda
+
+In our dataset, Elastic Net selected an alpha close to zero, effectively behaving like Ridge, which suggests that GDP growth here is shaped by many small, correlated drivers rather than a few dominant ones. The consistent negative signs on unemployment variables reinforce their role as headwinds to growth, while other coefficients remain small. Full coefficient tables are provided in the Appendix 3.2. These results highlight the importance of selecting lambda carefully: more penalization often produces models that are simpler and more robust out of sample. Choosing lambda solely to minimize cross-validation error can lead to overfitting, because Ridge and Elastic Net estimate lambda based only on the training data. This may result in a model that predicts the training outcomes very accurately but performs poorly on new, unseen data. The 1-SE rule mitigates this risk by selecting a slightly larger, more conservative lambda within one standard error of the minimum, which shrinks the coefficients further. This reduces the tendency of the model to fit the training data too closely, improving generalization and predictive performance. Consequently, it is good practice to evaluate both the lambda that minimizes cross-validation error and the lambda suggested by the 1-SE rule. Finally, there are a number of reasons why running a penalised regression is more useful than multiple linear regression. Firstly, penalised regression tackles the problem of multicollinearity. In economic data, predictors are often correlated. OLS struggles with this and predictor significance can change dramatically when variables are added or dropped. Penalised regression handles this by stabilising estimates by shrinking coefficients toward zero. Penalised regression also counters overfitting risk. Regularisation penalises ‘noisy’ predictors meaning results are more reliable out-of-sample. Additionally, allowing LASSO to choose for significant variables and Ridge to reduce insignificant predictors impact, there can be consistency in variable selection making the model more robust and reproducible than if this selection was done manually.
 
 ### 3.4 Binary Classification of Growth
 
-Because many policy decisions are yes/no rather than continuous, we also reframed the question: will a country grow faster than a practical benchmark? This makes the model easier to act on in practice: instead of predicting a noisy growth rate, we can give a simple yes/no on whether growth is likely to beat the benchmark. We created a binary flag, Growing_more, equal to 1 if growth exceeds 2.7 percent and 0 otherwise and applied the ridge regression. At the lambda that minimizes error, the model achieved about 77.5% accuracy, while the more conservative 1-SE solution reached 72.5%. Ridge was a sensible choice here, as it stabilizes predictions across many correlated economic indicators rather than relying on just one or two. Full confusion matrices with sensitivity and specificity are included in Appendix X.(2 tables for comparison 1se and lambda min).
-We repeated the classification with a different train–test split. Performance moved only slightly, which is exactly what we would expect given a modest signal: the model isn’t brittle, and small resampling differences don’t overturn the result.(Appendix XX)
+Because many policy decisions are yes/no rather than continuous, we also reframed the question: will a country grow faster than a practical benchmark? This makes the model easier to act on in practice: instead of predicting a noisy growth rate, we can give a simple yes/no on whether growth is likely to beat the benchmark. We created a binary flag, Growing_more, equal to 1 if growth exceeds 2.7 percent and 0 otherwise and applied the ridge regression. At the lambda that minimizes error, the model achieved about 77.5% accuracy, while the more conservative 1-SE solution reached 72.5% (Figure 2). Ridge was a sensible choice here, as it stabilizes predictions across many correlated economic indicators rather than relying on just one or two. We repeated the classification with a different train–test split. Performance moved only slightly, which is exactly what we would expect given a modest signal: the model isn’t brittle, and small resampling differences don’t overturn the result.
 
+```{r echo=FALSE}
+# Build a confusion matrix summary table
+conf_results <- tibble::tibble(
+  Model = c("Ridge (lambda.min)", "Ridge (lambda.1se)"),
+  TN    = c(11, 11),
+  FP    = c(3, 3),
+  FN    = c(6, 8),
+  TP    = c(20, 18),
+  Accuracy = c(0.775, 0.725)
+)
+knitr::kable(conf_results, digits = 3, align = "c")
+```
+
+*Table 2.* Baseline linear specification for GDP growth as a function of income, unemployment (quadratic), demographics, urbanization, health, population growth, and tax burden.
 
 # 4. Conclusion
 
-Our findings reflect that OLS provides limited insight, especially when variables such as Net Trade are included that contribute noise. Penalized regression models, and, in particular, Ridge and Elastic Net by the 1-SE rule, achieve the best fit between accuracy, simplicity, and stability. Both these models consistently identify unemployment and GDP per capita as the best predictors of annual GDP growth, though explanatory power remains low.
-Which is the best model? The best performer is Ridge/Elastic Net regression at lambda.1se, as it generalizes better and least overfits compared to lambda.min.
-Additional observations: columns or rows? Additional rows (i.e., more years or countries) would be better than additional variables. Additional rows make cross-validation more trustworthy and predictive performance more consistent. Additional variables raise the threat of deteriorating multicollinearity and noise, but additional observations improve model trustworthiness directly.
-GDP growth vs. "Growing more"? Ongoing GDP growth prediction is more handy for long-term projections and budgeting (e.g., debt sustainability). Binary prediction of Growing more is more handy for decision-making uses such as lending or policy evaluation, where it is easier to comprehend and act on a yes/no signal. Both perspectives are complementary: the continuous prediction offers precision, while the binary classification offers actionable recommendations.
+To conclude, the results show that penalised regressions clearly outperform OLS, with the Ridge/Elastic Net models at the 1-SE solution providing the most robust and stable predictions of annual GDP growth, despite the weak predictive outcomes of the variables seen across the sample set. If additional data were available, more countries (rows) may improve the predictive power of these models as it will make cross-validation steadier and out of sample results more accurate. One of the main limitations of the data is in sample size rather than dimensionality. Larger samples would improve both the stability of coefficient estimates and the reliability of cross-validation. Predicting continuous GDP growth is useful for economic research and detailed forecasting, but in practice policymakers often need a simpler, binary answer. In this case, predicting whether growth is on par, or below a certain level, (the Growing_more model) is more actionable, as it aligns with policy decisions such as whether to stimulate the economy or adjust borrowing.
 
 # References
 
+::: {#refs}
+:::
+
 # Appendix
 
-```{r appendix-code, echo=TRUE, eval=FALSE, message=FALSE, warning=FALSE}
+```{r appendix-code1, message=FALSE, warning=FALSE, include=FALSE}
+## Preparation
 pacman::p_load(tidyverse,ggplot2,dplyr,car,caret,caretEnsemble,elasticnet,glmnet,broom,psych,corrplot)
-
-# Load the Dataset
 df <- read_csv("a1_data_group_2.csv")
-head(df, 10)
-
 df <- df %>%
   dplyr::rename(
     country                = `Country`,
@@ -171,100 +201,39 @@ df <- df %>%
 # 1.1 Select variables used in models
 model_df_linear <- df %>%
   dplyr::select(country,gdp_growth,gdp_pc_ppp,net_trade,unemployment_total,age_dependency,urban_pct, life_expectancy_female,tax_payments,population_growth)
-
-# 1.2 Basic checks
-colSums(is.na(df)) %>% sort(decreasing = TRUE) # no missing values
-sum(duplicated(model_df_linear$country))
-str(model_df_linear)
-
-# 1.3 Check for outlieres
-summary(model_df_linear)
-boxplot(model_df_linear$gdp_pc_ppp, main="GDP per capita PPP")
-boxplot(model_df_linear$net_trade, main="Net trade")
-
-# 1.5 Check distribution of outcome
-hist(model_df_linear$gdp_growth, 
-     main="GDP Growth Distribution", 
-     xlab="Growth (%)", 
-     ylab = "Frequency",
-     col = "lightgray", border = "black")
-qqnorm(model_df_linear$gdp_growth); qqline(model_df_linear$gdp_growth, col="red")
   
-  # 2. Descriptive Statistics
-  # Summary stats for linear model dataset
-  summary_stats <- psych::describe(model_df_linear %>% 
-                                     dplyr::select(-country))
-summary_stats %>% 
-  dplyr::select(mean, sd, min, max, skew, kurtosis)
-
-# Correlation Heatmap
-cor_matrix <- cor(model_df_linear %>% dplyr::select(-country), use = "pairwise.complete.obs")
-
-corrplot(cor_matrix, method = "color", type = "upper",
-         tl.col = "black", tl.srt = 45, 
-         addCoef.col = "black", number.cex = 0.6,
-         title = "Correlation Heatmap of Predictors & GDP Growth",
-         mar=c(0,0,1,0))
-
-# Scatterplots: GDP growth vs each predictor
-
-long_df <- model_df_linear %>%
-  pivot_longer(-c(country, gdp_growth), names_to = "variable", values_to = "value")
-
-ggplot(long_df, aes(x = value, y = gdp_growth)) +
-  geom_point(color = "steelblue", alpha = 0.7) +
-  geom_smooth(method = "lm", se = FALSE, color = "red", linewidth = 0.7) +
-  facet_wrap(~variable, scales = "free_x") +
-  theme_minimal() +
-  labs(title = "GDP Growth vs Predictors",
-       x = "Predictor Value", y = "GDP Growth (%)")
+# 2. Descriptive Statistics
+# Summary stats for linear model dataset
+  summary_stats <- psych::describe(model_df_linear %>% dplyr::select(-country))
+  summary_stats %>% dplyr::select(mean, sd, min, max, skew, kurtosis)
 
 # Q1: Linear Regression Prediction
 # Model A: baseline regression without Net trade
-formula_A <- gdp_growth ~ gdp_pc_ppp + unemployment_total + age_dependency + urban_pct +
-  life_expectancy_female + tax_payments + population_growth
+formula_A <- gdp_growth ~ gdp_pc_ppp + unemployment_total + age_dependency + urban_pct + life_expectancy_female + tax_payments + population_growth
 model_A <- lm(formula_A, data = model_df_linear, singular.ok = FALSE)
-
 # Model B: regression with Net Trade 
-formula_B <- gdp_growth ~ gdp_pc_ppp + unemployment_total + age_dependency + urban_pct +
-  life_expectancy_female + tax_payments + net_trade + population_growth
+formula_B <- gdp_growth ~ gdp_pc_ppp + unemployment_total + age_dependency + urban_pct + life_expectancy_female + tax_payments + net_trade + population_growth
 model_B <- lm(formula_B, data = model_df_linear, singular.ok = FALSE)
-summary(model_A)
-summary(model_B)
 
-## Q2:
-formula_C <- gdp_growth ~ gdp_pc_ppp + unemployment_total + age_dependency + I(unemployment_total^2) + urban_pct + life_expectancy_female + population_growth+ tax_payments
+## Task 2:
+formula_C <- gdp_growth~gdp_pc_ppp+unemployment_total+age_dependency+I(unemployment_total^2) +urban_pct+life_expectancy_female+population_growth+tax_payments
 model_C <- lm(formula_C, data = model_df_linear, singular.ok = FALSE)
-summary(model_C)
-
-## model diagnostics
-plot(model_A)
-vif(model_A)
-plot(model_C)
-vif(model_C)
 
 ## Task 3
 X <- model.matrix(formula_C, data = model_df_linear)[, -1]
 y <- model_df_linear$gdp_growth
 set.seed(555)
 cvfit <- cv.glmnet(x=X, y=y, alpha=1, type.measure = "mse", nfolds = 10)
-print(cvfit)
-plot(cvfit)
 coef(cvfit, s = "lambda.min")
 coef(cvfit, s = "lambda.1se")
 
 ## Task 4
 set.seed(555)
 cvfit1 <- cv.glmnet(x=X, y=y, alpha=1, type.measure = "mse", nfolds = 10, standardize=TRUE)
-plot(cvfit1$glmnet.fit, xvar = "lambda", label = TRUE)
 cvfit2 <- cv.glmnet(x=X, y=y, alpha=1, type.measure = "mse", nfolds = 10, standardize=FALSE)
-plot(cvfit2$glmnet.fit, xvar = "lambda", label = TRUE)
-# Coefficeints of both models
-coef(cvfit2, s = "lambda.min")
-coef(cvfit1, s = "lambda.min")
+# Coefficients of both models
 
-## Task 6
-# Train/Test split (110/40)
+## Task 6: Train/Test split (110/40)
 set.seed(555)
 n <- nrow(X)
 idx <- sample(seq_len(n), size = 110)  
@@ -288,186 +257,446 @@ ridge_1se <- glmnet(X_train, y_train, alpha = 0, lambda = lambda_ridge_1se)
 set.seed(555)
 # Cross-validation setup
 fitControl <- trainControl(method = "repeatedcv",number = 10,repeats = 5,verboseIter = TRUE)
-
 alpha_grid <- seq(0.0001, 1, length = 10)
 lambda_seq <- cv_ridge$glmnet.fit$lambda  
-elasticNet <- train(gdp_growth ~ . - country,data = trainData,method = "glmnet",
-  tuneGrid = expand.grid(alpha = alpha_grid,lambda = lambda_seq),trControl = fitControl)
-print(elasticNet$bestTune)
-
-# Fit final Elastic Net model
+elasticNet <- train(gdp_growth~.-country,data=trainData,method = "glmnet", tuneGrid = expand.grid(alpha=alpha_grid,lambda=lambda_seq),trControl=fitControl)
 best_alpha  <- elasticNet$bestTune$alpha
 best_lambda <- elasticNet$bestTune$lambda
 en_final <- glmnet(X_train, y_train,alpha = best_alpha,lambda = best_lambda,standardize = TRUE)
-coef(en_final)
-## variable importance
-plot(varImp(elasticNet, scale = FALSE))
 
 ## Task 8
 # Predictions for Ridge models
-pred_ridge_min  <- predict(ridge_min, newx = X_test)
-pred_ridge_1se  <- predict(ridge_1se, newx = X_test)
-
+pred_ridge_min<-predict(ridge_min, newx = X_test)
+pred_ridge_1se<-predict(ridge_1se, newx = X_test)
 # Elastic Net models: lambda.min and lambda.1se
-en_min <- glmnet(X_train, y_train,
-                 alpha = best_alpha,
-                 lambda = elasticNet$bestTune$lambda, # lambda.min from caret
-                 standardize = TRUE)
-
+en_min<-glmnet(X_train,y_train,alpha=best_alpha,lambda= elasticNet$bestTune$lambda,standardize=TRUE)
 # For lambda.1se, pick the largest lambda within 1 SE of min error
 results_all <- elasticNet$results
 min_rmse <- min(results_all$RMSE)
 rmse_1se <- min_rmse + results_all$RMSESD[which.min(results_all$RMSE)]
 lambda_en_1se <- max(results_all$lambda[results_all$RMSE <= rmse_1se])
-
-en_1se <- glmnet(X_train, y_train,
-                 alpha = best_alpha,
-                 lambda = lambda_en_1se,
-                 standardize = TRUE)
-
+en_1se <- glmnet(X_train, y_train,alpha = best_alpha,lambda = lambda_en_1se,standardize = TRUE)
 # Predictions for Elastic Net models
 pred_en_min  <- predict(en_min, newx = X_test)
 pred_en_1se  <- predict(en_1se, newx = X_test)
-
 # Performance metric functions
 rmse <- function(y, yhat) sqrt(mean((y - as.numeric(yhat))^2))
 mae  <- function(y, yhat) mean(abs(y - as.numeric(yhat)))
-
 # Collect results in one table
 results <- tibble(
-  model = c(
-    "Ridge (lambda.min)",
-    "Ridge (lambda.1se)",
+  model = c("Ridge (lambda.min)","Ridge (lambda.1se)",
     paste0("Elastic Net (alpha=", round(best_alpha, 2), ", lambda.min)"),
-    paste0("Elastic Net (alpha=", round(best_alpha, 2), ", lambda.1se)")
-  ),
-  RMSE = c(
-    rmse(y_test, pred_ridge_min),
-    rmse(y_test, pred_ridge_1se),
-    rmse(y_test, pred_en_min),
-    rmse(y_test, pred_en_1se)
-  ),
-  MAE = c(
-    mae(y_test, pred_ridge_min),
-    mae(y_test, pred_ridge_1se),
-    mae(y_test, pred_en_min),
-    mae(y_test, pred_en_1se)
-  )
-)
+    paste0("Elastic Net (alpha=", round(best_alpha, 2), ", lambda.1se)")),
+  RMSE = c(rmse(y_test, pred_ridge_min),rmse(y_test, pred_ridge_1se),
+           rmse(y_test,pred_en_min),rmse(y_test, pred_en_1se)),
+  MAE = c(mae(y_test, pred_ridge_min),mae(y_test, pred_ridge_1se),
+          mae(y_test,pred_en_min),mae(y_test, pred_en_1se)))
 
-print(results)
-
-## Task 11
+## Task 11-12
 df <- df %>%
   mutate(Growing_more = ifelse(gdp_growth > 2.7, 1, 0))
-
-# Check up frequency table
-table(df$Growing_more)
-
-
-# Binary dependent Variable witg logistic Ridge regression 
-
-#Create new matrix with new dependent variable
 X3 <- model.matrix(Growing_more ~ . - country, data=df)[,-1]
 y3 <- df$Growing_more
-
 set.seed(555)
 n <- nrow(X3)
-
 idx1 <- sample(seq_len(n), size = 110)  # training set
 X_train1 <- X3[idx1, ]; y_train1 <- y3[idx1]
 X_test1  <- X3[-idx1,]; y_test1  <- y3[-idx1]
 
 set.seed(555)
 cv_ridge_logit <- cv.glmnet(X_train1, y_train1, alpha = 0, family = "binomial", nfolds = 10)
-
 lambda_min <- cv_ridge_logit$lambda.min
 lambda_1se <- cv_ridge_logit$lambda.1se
-
-ridge_logit_min <- glmnet(X_train1, y_train1, 
-                          alpha = 0, 
-                          lambda = lambda_min, 
-                          family = "binomial", 
-                          nfold = 10)
-
-ridge_logit_1se <- glmnet(X_train1, y_train1, 
-                          alpha = 0, 
-                          lambda = lambda_1se, 
-                          family = "binomial", 
-                          nfold = 10)
-
+ridge_logit_min <- glmnet(X_train1,y_train1,alpha=0,lambda=lambda_min,family="binomial",nfold=10)
+ridge_logit_1se <- glmnet(X_train1,y_train1,alpha=0,lambda=lambda_1se,family="binomial",nfold=10)
 # Probabilities
 prob_min  <- predict(ridge_logit_min, newx = X_test1, type = "response")
 prob_1se  <- predict(ridge_logit_1se, newx = X_test1, type = "response")
-
 # Class predictions (threshold 0.5)
 pred_min <- ifelse(prob_min > 0.5, 1, 0)
 pred_1se <- ifelse(prob_1se > 0.5, 1, 0)
 
-# Accuracy
-acc_min  <- mean(pred_min == y_test1)
-acc_1se  <- mean(pred_1se == y_test1)
-
-# Confusion matrices
-table(Predicted = pred_min, Actual = y_test1)
-acc_min
-table(Predicted = pred_1se, Actual = y_test1)
-acc_1se
-
-## Interpretation : 
-# At lambdamin:
-# True Negatives (TN) = 11 (predicted 0, actual 0)
-# False Negatives (FN) = 3 (predicted 0, actual 1)
-# False Positives (FP) = 6 (predicted 1, actual 0)
-# True Positives (TP) = 20 (predicted 1, actual 1)
-## overall accuracy: 77.5%
-
-# At lambda1se:
-# TN = 11
-# FN = 3
-# FP = 8
-# TP = 18
-## overall accuracy: 72.5%
-
-
-## Different Data Split
+## Task 13
 set.seed(555)
 n <- nrow(X3)
-
 idx2 <- sample(seq_len(n), size = 100)
-
 X_train2 <- X3[idx2, ]; y_train2 <- y3[idx2]
 X_test2  <- X3[-idx2,]; y_test2  <- y3[-idx2]
-
 # Cross-validated logistic Ridge
-cv_ridge_logit2 <- cv.glmnet(X_train2, y_train2,
-                             alpha = 0,
-                             family = "binomial",
-                             nfolds = 10)
-
+cv_ridge_logit2 <- cv.glmnet(X_train2, y_train2,alpha = 0,family = "binomial",nfolds = 10)
 lambda_min2 <- cv_ridge_logit2$lambda.min
 lambda_1se2 <- cv_ridge_logit2$lambda.1se
-
-ridge_logit_min2 <- glmnet(X_train2, y_train2, alpha = 0, lambda = lambda_min2, family = "binomial")
-ridge_logit_1se2 <- glmnet(X_train2, y_train2, alpha = 0, lambda = lambda_1se2, family = "binomial")
-
+ridge_logit_min2 <- glmnet(X_train2,y_train2,alpha=0,lambda=lambda_min2,family="binomial")
+ridge_logit_1se2 <- glmnet(X_train2,y_train2,alpha=0,lambda=lambda_1se2,family="binomial")
 # Predictions on new test set
 prob_min2 <- predict(ridge_logit_min2, newx = X_test2, type = "response")
 prob_1se2 <- predict(ridge_logit_1se2, newx = X_test2, type = "response")
+pred_min2 <- ifelse(prob_min2 > 0.5, 1, 0)
 
+```
+
+## Appendix 1
+
+```{r echo=FALSE}
+boxplot(model_df_linear$net_trade, main="Net trade") 
+```
+
+## Appendix 2
+
+### Appendix 2.1 Table 1
+
+```{r echo=FALSE}
+summary(model_A)
+```
+
+### Appendix 2.2 Table 2
+
+```{r echo=FALSE}
+summary(model_B)
+```
+
+### Appendix 2.3 Table 3
+
+```{r echo=FALSE}
+summary(model_C)
+```
+
+### Appendix 2.4
+
+#### Model A
+
+```{r echo=FALSE}
+vif(model_A)
+
+par(mfrow = c(2, 2))   
+plot(model_A)
+par(mfrow = c(1, 1))  
+```
+
+#### Model C
+
+```{r echo=FALSE}
+vif(model_C)
+
+par(mfrow = c(2, 2))   
+plot(model_C)
+par(mfrow = c(1, 1))  
+```
+
+### Appendix 2.5
+
+```{r echo=FALSE}
+long_df <- model_df_linear %>%
+  pivot_longer(-c(country, gdp_growth), names_to = "variable", values_to = "value")
+
+ggplot(long_df, aes(x = value, y = gdp_growth)) +
+  geom_point(color = "steelblue", alpha = 0.7) +
+  geom_smooth(method = "lm", se = FALSE, color = "red", linewidth = 0.7) +
+  facet_wrap(~variable, scales = "free_x") +
+  theme_minimal() +
+  labs(title = "GDP Growth vs Predictors",
+       x = "Predictor Value", y = "GDP Growth (%)")
+```
+
+## Appendix 3
+
+### Appendix 3.1
+
+```{r echo=FALSE}
+coef(cvfit, s = "lambda.min") 
+coef(cvfit, s = "lambda.1se")
+```
+
+### Appendix 3.2
+
+#### 3.2.1 Ridge lambda-1se coefficients
+
+```{r echo=FALSE}
+coef(ridge_1se)
+```
+
+#### 3.2.2 Ridge lambda-min coefficients
+
+```{r echo=FALSE}
+coef(ridge_min)
+```
+
+#### 3.2.3 Elastic net lambda-1se coefficients
+
+```{r echo=FALSE}
+coef(en_1se)
+```
+
+#### 3.2.4 Elastic net lambda-min coefficients
+
+```{r echo=FALSE}
+coef(en_min)
+```
+
+# Code
+
+```{r appendix-code, echo=TRUE, eval=FALSE, message=FALSE, warning=FALSE}
+## Preparation
+pacman::p_load(tidyverse,ggplot2,dplyr,car,caret,caretEnsemble,elasticnet,glmnet,broom,psych,corrplot)
+df <- read_csv("a1_data_group_2.csv")
+df <- df %>%
+  dplyr::rename(
+    country                = `Country`,
+    electricity_access     = `Access to electricity (% of population)`,
+    adolescent_fertility   = `Adolescent fertility rate (births per 1,000 women ages 15-19)`,
+    age_dependency   = `Age dependency ratio (% of working-age population)`,
+    contrib_family_fem     = `Contributing family workers, female (% of female employment) (modeled ILO estimate)`,
+    contrib_family_male    = `Contributing family workers, male (% of male employment) (modeled ILO estimate)`,
+    contrib_family_total   = `Contributing family workers, total (% of total employment) (modeled ILO estimate)`,
+    credit_info_index      = `Depth of credit information index (0=low to 8=high)`,
+    employers_fem          = `Employers, female (% of female employment) (modeled ILO estimate)`,
+    employers_male         = `Employers, male (% of male employment) (modeled ILO estimate)`,
+    employers_total        = `Employers, total (% of total employment) (modeled ILO estimate)`,
+    emp_agriculture_total  = `Employment in agriculture (% of total employment) (modeled ILO estimate)`,
+    emp_agriculture_fem    = `Employment in agriculture, female (% of female employment) (modeled ILO estimate)`,
+    emp_agriculture_male   = `Employment in agriculture, male (% of male employment) (modeled ILO estimate)`,
+    emp_industry_total     = `Employment in industry (% of total employment) (modeled ILO estimate)`,
+    emp_industry_fem       = `Employment in industry, female (% of female employment) (modeled ILO estimate)`,
+    emp_industry_male      = `Employment in industry, male (% of male employment) (modeled ILO estimate)`,
+    emp_services_total     = `Employment in services (% of total employment) (modeled ILO estimate)`,
+    emp_services_fem       = `Employment in services, female (% of female employment) (modeled ILO estimate)`,
+    emp_services_male      = `Employment in services, male (% of male employment) (modeled ILO estimate)`,
+    export_value_index     = `Export value index (2000 = 100)`,
+    export_volume_index    = `Export volume index (2000 = 100)`,
+    fertility_rate_total   = `Fertility rate, total (births per woman)`,
+    broadband_subs         = `Fixed broadband Internet subscribers (per 100 people)`,
+    gdp_growth             = `GDP growth (annual %)`,
+    gdp_pc_const2005       = `GDP per capita (constant 2005 US$)`,
+    gdp_pc_ppp             = `GDP per capita, PPP (constant 2011 international $)`,
+    internet_users         = `Individuals using the Internet (% of population)`,
+    lfpr_fem               = `Labor force participation rate, female (% of female population ages 15+) (modeled ILO estimate)`,
+    lfpr_male              = `Labor force participation rate, male (% of male population ages 15+) (modeled ILO estimate)`,
+    lfpr_total             = `Labor force participation rate, total (% of total population ages 15+) (modeled ILO estimate)`,
+    labor_force_total      = `Labor force, total`,
+    life_expectancy_female           = `Life expectancy at birth, female (years)`,
+    life_expectancy_male          = `Life expectancy at birth, male (years)`,
+    mobile_subs            = `Mobile cellular subscriptions (per 100 people)`,
+    own_account_fem        = `Own-account workers, female (% of female employment) (modeled ILO estimate)`,
+    own_account_male       = `Own-account workers, male (% of male employment) (modeled ILO estimate)`,
+    own_account_total      = `Own-account workers, total (% of male employment) (modeled ILO estimate)`,
+    pop_0_14_pct           = `Population ages 0-14 (% of total)`,
+    pop_0_14_total         = `Population ages 0-14, total`,
+    pop_15_64_pct          = `Population ages 15-64 (% of total)`,
+    pop_15_64_total        = `Population ages 15-64, total`,
+    pop_65plus_pct         = `Population ages 65 and above (% of total)`,
+    pop_65plus_total       = `Population ages 65 and above, total`,
+    pop_density            = `Population density (people per sq. km of land area)`,
+    population_growth             = `Population growth (annual %)`,
+    pop_total              = `Population, total`,
+    credit_coverage_priv   = `Private credit bureau coverage (% of adults)`,
+    credit_coverage_pub    = `Public credit registry coverage (% of adults)`,
+    rural_pop_total        = `Rural population`,
+    rural_pop_pct          = `Rural population (% of total population)`,
+    self_emp_fem           = `Self-employed, female (% of female employment) (modeled ILO estimate)`,
+    self_emp_male          = `Self-employed, male (% of male employment) (modeled ILO estimate)`,
+    self_emp_total         = `Self-employed, total (% of total employment) (modeled ILO estimate)`,
+    tax_payments       = `Tax payments (number)`,
+    telephone_lines        = `Telephone lines (per 100 people)`,
+    contract_days          = `Time required to enforce a contract (days)`,
+    start_business_days    = `Time required to start a business (days)`,
+    tax_prep_hours         = `Time to prepare and pay taxes (hours)`,
+    unemployment_fem              = `Unemployment, female (% of female labor force) (modeled ILO estimate)`,
+    unemployment_male             = `Unemployment, male (% of male labor force) (modeled ILO estimate)`,
+    unemployment_total            = `Unemployment, total (% of total labor force) (modeled ILO estimate)`,
+    unemp_youth_fem        = `Unemployment, youth female (% of female labor force ages 15-24) (modeled ILO estimate)`,
+    unemp_youth_male       = `Unemployment, youth male (% of male labor force ages 15-24) (modeled ILO estimate)`,
+    unemp_youth_total      = `Unemployment, youth total (% of total labor force ages 15-24) (modeled ILO estimate)`,
+    urban_pop_total        = `Urban population`,
+    urban_pct          = `Urban population (% of total)`,
+    vulner_emp_fem         = `Vulnerable employment, female (% of female employment) (modeled ILO estimate)`,
+    vulner_emp_male        = `Vulnerable employment, male (% of male employment) (modeled ILO estimate)`,
+    vulner_emp_total       = `Vulnerable employment, total (% of total employment) (modeled ILO estimate)`,
+    waged_emp_fem          = `Wage and salaried workers, female (% of female employment) (modeled ILO estimate)`,
+    waged_emp_male         = `Wage and salaried workers, male (% of male employment) (modeled ILO estimate)`,
+    waged_emp_total        = `Wage and salaried workers, total (% of total employment) (modeled ILO estimate)`,
+    net_trade              = `Net trade in goods and services (BoP, current US$)`) 
+
+# 1.1 Select variables used in models
+model_df_linear <- df %>%
+  dplyr::select(country,gdp_growth,gdp_pc_ppp,net_trade,unemployment_total,age_dependency,
+                urban_pct, life_expectancy_female,tax_payments,population_growth)
+# 1.2 Basic checks
+colSums(is.na(df)) %>% sort(decreasing = TRUE) # no missing values
+sum(duplicated(model_df_linear$country))
+# 1.3 Check for outlieres
+summary(model_df_linear)
+boxplot(model_df_linear$net_trade, main="Net trade")
+# 2. Descriptive Statistics
+# Summary stats for linear model dataset
+  summary_stats <- psych::describe(model_df_linear %>% dplyr::select(-country))
+  summary_stats %>% dplyr::select(mean, sd, min, max, skew, kurtosis)
+# Correlation Heatmap
+cor_matrix <- cor(model_df_linear %>% dplyr::select(-country), use = "pairwise.complete.obs")
+corrplot(cor_matrix, method = "color", type = "upper", tl.col = "black", tl.srt = 45, 
+         addCoef.col = "black", number.cex = 0.6, 
+         title = "Correlation Heatmap of Predictors & GDP Growth", mar=c(0,0,1,0))
+# Scatterplots: GDP growth vs each predictor
+long_df <- model_df_linear %>%
+  pivot_longer(-c(country, gdp_growth), names_to = "variable", values_to = "value")
+ggplot(long_df, aes(x = value, y = gdp_growth)) +
+  geom_point(color = "steelblue", alpha = 0.7) +
+  geom_smooth(method = "lm", se = FALSE, color = "red", linewidth = 0.7) +
+  facet_wrap(~variable, scales = "free_x") +
+  theme_minimal() +
+  labs(title = "GDP Growth vs Predictors",
+       x = "Predictor Value", y = "GDP Growth (%)")
+
+# Q1: Linear Regression Prediction
+# Model A: baseline regression without Net trade
+formula_A <- gdp_growth ~ gdp_pc_ppp + unemployment_total + age_dependency + urban_pct +
+  life_expectancy_female + tax_payments + population_growth
+model_A <- lm(formula_A, data = model_df_linear, singular.ok = FALSE)
+# Model B: regression with Net Trade 
+formula_B <- gdp_growth ~ gdp_pc_ppp + unemployment_total + age_dependency + urban_pct +
+  life_expectancy_female + tax_payments + net_trade + population_growth
+model_B <- lm(formula_B, data = model_df_linear, singular.ok = FALSE)
+summary(model_A)
+summary(model_B)
+
+## Task 2:
+formula_C <- gdp_growth~gdp_pc_ppp+unemployment_total+age_dependency+I(unemployment_total^2) 
+ +urban_pct+life_expectancy_female+population_growth+tax_payments
+model_C <- lm(formula_C, data = model_df_linear, singular.ok = FALSE)
+summary(model_C)
+## model diagnostics
+plot(model_A)
+vif(model_A)
+plot(model_C)
+vif(model_C)
+
+## Task 3
+X <- model.matrix(formula_C, data = model_df_linear)[, -1]
+y <- model_df_linear$gdp_growth
+set.seed(555)
+cvfit <- cv.glmnet(x=X, y=y, alpha=1, type.measure = "mse", nfolds = 10)
+print(cvfit)
+coef(cvfit, s = "lambda.min")
+coef(cvfit, s = "lambda.1se")
+
+## Task 4
+set.seed(555)
+cvfit1 <- cv.glmnet(x=X, y=y, alpha=1, type.measure = "mse", nfolds = 10, standardize=TRUE)
+cvfit2 <- cv.glmnet(x=X, y=y, alpha=1, type.measure = "mse", nfolds = 10, standardize=FALSE)
+# Coefficients of both models
+coef(cvfit2, s = "lambda.min")
+coef(cvfit1, s = "lambda.min")
+
+## Task 6: Train/Test split (110/40)
+set.seed(555)
+n <- nrow(X)
+idx <- sample(seq_len(n), size = 110)  
+trainData <- df[idx,]
+y2<-df$gdp_growth
+X2 <- model.matrix(gdp_growth ~ . -country, data=df)[,-1]
+X_train <- X2[idx, ]; y_train <- y2[idx]
+X_test <- X2[-idx,]; y_test <- y2[-idx]
+
+## Task 7
+## a) Ridge CV on training set
+set.seed(555)
+cv_ridge <- cv.glmnet(X_train, y_train, alpha = 0, nfolds = 10)
+lambda_ridge_min <- cv_ridge$lambda.min
+lambda_ridge_1se <- cv_ridge$lambda.1se
+### Final ridge models at the two lambdas
+ridge_min <- glmnet(X_train, y_train, alpha = 0, lambda = lambda_ridge_min)
+ridge_1se <- glmnet(X_train, y_train, alpha = 0, lambda = lambda_ridge_1se)
+
+## Elastic Net
+set.seed(555)
+# Cross-validation setup
+fitControl <- trainControl(method = "repeatedcv",number = 10,repeats = 5,verboseIter = TRUE)
+alpha_grid <- seq(0.0001, 1, length = 10)
+lambda_seq <- cv_ridge$glmnet.fit$lambda  
+elasticNet <- train(gdp_growth~.-country,data=trainData,method = "glmnet",
+  tuneGrid = expand.grid(alpha=alpha_grid,lambda=lambda_seq),trControl=fitControl)
+print(elasticNet$bestTune)
+best_alpha  <- elasticNet$bestTune$alpha
+best_lambda <- elasticNet$bestTune$lambda
+en_final <- glmnet(X_train, y_train,alpha = best_alpha,lambda = best_lambda,standardize = TRUE)
+coef(en_final)
+
+## Task 8
+# Predictions for Ridge models
+pred_ridge_min<-predict(ridge_min, newx = X_test)
+pred_ridge_1se<-predict(ridge_1se, newx = X_test)
+# Elastic Net models: lambda.min and lambda.1se
+en_min<-glmnet(X_train,y_train,alpha=best_alpha,lambda= elasticNet$bestTune$lambda,standardize=TRUE)
+# For lambda.1se, pick the largest lambda within 1 SE of min error
+results_all <- elasticNet$results
+min_rmse <- min(results_all$RMSE)
+rmse_1se <- min_rmse + results_all$RMSESD[which.min(results_all$RMSE)]
+lambda_en_1se <- max(results_all$lambda[results_all$RMSE <= rmse_1se])
+en_1se <- glmnet(X_train, y_train,alpha = best_alpha,lambda = lambda_en_1se,standardize = TRUE)
+# Predictions for Elastic Net models
+pred_en_min  <- predict(en_min, newx = X_test)
+pred_en_1se  <- predict(en_1se, newx = X_test)
+# Performance metric functions
+rmse <- function(y, yhat) sqrt(mean((y - as.numeric(yhat))^2))
+mae  <- function(y, yhat) mean(abs(y - as.numeric(yhat)))
+# Collect results in one table
+results <- tibble(
+  model = c("Ridge (lambda.min)","Ridge (lambda.1se)",
+    paste0("Elastic Net (alpha=", round(best_alpha, 2), ", lambda.min)"),
+    paste0("Elastic Net (alpha=", round(best_alpha, 2), ", lambda.1se)")),
+  RMSE = c(rmse(y_test, pred_ridge_min),rmse(y_test, pred_ridge_1se),
+           rmse(y_test,pred_en_min),rmse(y_test, pred_en_1se)),
+  MAE = c(mae(y_test, pred_ridge_min),mae(y_test, pred_ridge_1se),
+          mae(y_test,pred_en_min),mae(y_test, pred_en_1se)))
+print(results)
+
+## Task 11-12
+df <- df %>%
+  mutate(Growing_more = ifelse(gdp_growth > 2.7, 1, 0))
+table(df$Growing_more)
+X3 <- model.matrix(Growing_more ~ . - country, data=df)[,-1]
+y3 <- df$Growing_more
+set.seed(555)
+n <- nrow(X3)
+idx1 <- sample(seq_len(n), size = 110)  # training set
+X_train1 <- X3[idx1, ]; y_train1 <- y3[idx1]
+X_test1  <- X3[-idx1,]; y_test1  <- y3[-idx1]
+
+set.seed(555)
+cv_ridge_logit <- cv.glmnet(X_train1, y_train1, alpha = 0, family = "binomial", nfolds = 10)
+lambda_min <- cv_ridge_logit$lambda.min
+lambda_1se <- cv_ridge_logit$lambda.1se
+ridge_logit_min <- glmnet(X_train1,y_train1,alpha=0,lambda=lambda_min,family="binomial",nfold=10)
+ridge_logit_1se <- glmnet(X_train1,y_train1,alpha=0,lambda=lambda_1se,family="binomial",nfold=10)
+# Probabilities
+prob_min  <- predict(ridge_logit_min, newx = X_test1, type = "response")
+prob_1se  <- predict(ridge_logit_1se, newx = X_test1, type = "response")
+# Class predictions (threshold 0.5)
+pred_min <- ifelse(prob_min > 0.5, 1, 0)
+pred_1se <- ifelse(prob_1se > 0.5, 1, 0)
+# Confusion matrices
+table(Predicted = pred_min, Actual = y_test1)
+mean(pred_min == y_test1)
+table(Predicted = pred_1se, Actual = y_test1)
+mean(pred_1se == y_test1)
+
+## Task 13
+set.seed(555)
+n <- nrow(X3)
+idx2 <- sample(seq_len(n), size = 100)
+X_train2 <- X3[idx2, ]; y_train2 <- y3[idx2]
+X_test2  <- X3[-idx2,]; y_test2  <- y3[-idx2]
+# Cross-validated logistic Ridge
+cv_ridge_logit2 <- cv.glmnet(X_train2, y_train2,alpha = 0,family = "binomial",nfolds = 10)
+lambda_min2 <- cv_ridge_logit2$lambda.min
+lambda_1se2 <- cv_ridge_logit2$lambda.1se
+ridge_logit_min2 <- glmnet(X_train2,y_train2,alpha=0,lambda=lambda_min2,family="binomial")
+ridge_logit_1se2 <- glmnet(X_train2,y_train2,alpha=0,lambda=lambda_1se2,family="binomial")
+# Predictions on new test set
+prob_min2 <- predict(ridge_logit_min2, newx = X_test2, type = "response")
+prob_1se2 <- predict(ridge_logit_1se2, newx = X_test2, type = "response")
 pred_min2 <- ifelse(prob_min2 > 0.5, 1, 0)
 pred_1se2 <- ifelse(prob_1se2 > 0.5, 1, 0)
-
-# Accuracy and confusion matrices
-acc_min2 <- mean(pred_min2 == y_test2)
-acc_1se2 <- mean(pred_1se2 == y_test2)
-
-cat("Accuracy (lambda.min, new split):", acc_min2, "\n")
-cat("Accuracy (lambda.1se, new split):", acc_1se2, "\n")
-
-acc_min2 <- mean(pred_min2 == y_test2)
-acc_1se2 <- mean(pred_1se2 == y_test2)
-acc_min2
-acc_1se2
-
+# Accuracy of different train-test split
+mean(pred_min2 == y_test2)
+mean(pred_1se2 == y_test2)
 ```
