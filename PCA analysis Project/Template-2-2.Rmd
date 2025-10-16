@@ -1,0 +1,653 @@
+---
+title: "An informative title for your assignment"
+author: |
+  | Michael van Walsum 756104 (25%), Aleksandra Tatko 648925 (25%)
+  | Stijn Hooijman 620083 (25%), Francesco Di Presa 771382 (25%)
+date: "October, 2025"
+header-includes:
+  - \usepackage{booktabs}
+  - \usepackage{makecell}
+output:
+  pdf_document:
+subtitle: FEM11149 - Introduction to Data Science
+editor_options:
+  chunk_output_type: inline
+urlcolor: blue
+linkcolor: red
+---
+
+```{r, echo = FALSE, eval = FALSE, warning = FALSE, message = FALSE}
+# Directory setup
+path = dirname(rstudioapi::getSourceEditorContext()$path) # Path is directory of this file
+setwd(path)                                               # Set working directory
+```
+
+```{r include=FALSE}
+# --- Group Assignment 2 ------------------------------------------------------
+
+# --- Libraries ---------------------------------------------------------------
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(factoextra)
+library(pls)
+library(boot) 
+library(paran)
+set.seed(123)
+
+# --- Load & prepare data -----------------------------------------------------
+data <- read.csv("a2_data_group_2.csv")
+
+
+data <- data[,-1]
+
+names(data) <- c(
+  "Date",                        
+  "mean_temp",                   
+  "Tmax",                        
+  "tmin",                          
+  "perceived_mean",              
+  "perceived_max",                 
+  "perceived_min",                
+  "max_wind_speed",               
+  "max_wind_gusts",  
+  "shortwave_radiation", 
+  "dominant_wind_direction",      
+  "reference_evapotranspiration", 
+  "daylight_duration",            
+  "sunshine_duration",            
+  "precipitation_sum",           
+  "snowfall_sum",                 
+  "precipitation_hours",          
+  "rain_sum"                       
+)
+
+names(data)[names(data) == "Max..temperature...C."] <- "Tmax"
+data$Date <- as.Date(data$Date, format = "%Y-%m-%d")
+
+# --- Task 1: Build independent (X) and dependent (y) variables ---------------
+# X(t) uses ALL variables except the last row; y(t+1) is Tmax excluding the first row
+X      <- data[-nrow(data), ]   # all but last row #-1
+y      <- data$Tmax[-1]         # Tmax shifted one day ahead
+dates  <- data$Date[-1]         # matching dates for y
+
+# Keep numeric predictors for later steps (+ drop zero-variance)
+X_num <- X[sapply(X, is.numeric)]
+X_num <- X_num[, sapply(X_num, function(col) sd(col, na.rm = TRUE) > 0)]
+y_num  <- as.numeric(y)
+
+# --- Task 2: Exploratory analysis -------------------------------------------
+# Scatterplots of each independent variable vs. next-day Tmax
+df_plot <- cbind(X, y) %>% dplyr::select(where(is.numeric))
+df_plot %>%
+  pivot_longer(-y, names_to = "variable", values_to = "value") %>%
+  ggplot(aes(value, y)) +
+  geom_point(alpha = 0.6, color = "steelblue") +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  facet_wrap(~ variable, scales = "free", ncol = 4) +
+  labs(x = "Independent variable", y = "Next-day Tmax",
+       title = "Scatterplots: IVs vs next-day Tmax")
+
+# Compute correlations
+correlations <- sapply(X_num, function(col) cor(col, y_num, use = "pairwise.complete.obs"))
+round(sort(correlations, decreasing = TRUE), 2)
+
+# Convert to a data frame for ggplot
+cor_df <- data.frame(
+  Variable = names(correlations),
+  Correlation = as.numeric(correlations)
+)
+
+# Plot
+ggplot(cor_df, aes(x = reorder(Variable, Correlation), y = Correlation)) +
+  geom_col(fill = "skyblue") +
+  coord_flip() +
+  theme_minimal() +
+  labs(
+    title = "Correlation of Independent Variables with Next-day Max Temperature",
+    x = "Variable",
+    y = "Correlation coefficient"
+  )
+
+
+# --- Interpretation (Task 2) -------------------------------------------------
+# Temperature-based variables are the strongest predictors of next-day Tmax (ρ > 0.9).
+# Solar radiation and daylight variables have moderate positive associations (ρ ≈ 0.6–0.8).
+# Precipitation and wind variables show weak to moderate negative relationships.
+# Overall, the correlations reflect realistic physical relationships:
+# sunny, warm, and dry conditions today lead to higher Tmax tomorrow,
+# while cloudy, wet, or windy conditions precede cooler days.
+
+# --- Task 3: Train-Test Split (Time Series) ---------------------------------
+# Chronological split (no shuffling): 80% train, 20% test
+df <- data.frame(Date = dates, X_num, y = y_num)
+n  <- nrow(df); train_size <- floor(0.8 * n)
+train <- df[1:train_size, ]      # earlier observations
+test  <- df[(train_size + 1):n, ] # later observations
+
+# Visual check of the split (red dashed line = boundary)
+ggplot(df, aes(Date, y)) +
+  geom_line(color = "steelblue") +
+  geom_vline(xintercept = as.numeric(max(train$Date)),
+             linetype = "dashed", color = "red") +
+  labs(title = "Train/Test Split Check",
+       subtitle = "Red dashed line = boundary between training and test sets",
+       y = "Next-day Tmax")
+
+# --- Task 4: Principal Component Analysis (PCA) ------------------------------
+# PCA on TRAINING independent variables only (no Date, no y)
+X_train <- train[, sapply(train, is.numeric)]
+X_train <- X_train[, setdiff(names(X_train), "y")]
+
+# Run PCA using correlation matrix (standardizes variables)
+res <- princomp(X_train, cor = TRUE, scores = TRUE)
+summary(res)
+
+# Scree plot + quick look at loadings (PC1–PC2)
+screeplot(res, main = "Scree Plot - PCA on Training Data")
+round(res$loadings[, 1:4], 2)
+
+#Parallel Analysis
+paran(X_train, graph = TRUE)
+##### comment #####
+
+# Cleaner biplots (variables only + biplot with top contributors)
+fviz_pca_var(res, repel = TRUE, col.var = "contrib")
+fviz_pca_biplot(res,
+                geom.ind = "point", pointshape = 16, pointsize = 0.7, alpha.ind = 0.15,
+                col.ind = "grey70", col.var = "firebrick", repel = TRUE,
+                select.var = list(contrib = 12)  # label top 12 vars
+)
+
+# Apply Kaiser’s rule (keep eigenvalues > 1)
+eigenvalues <- res$sdev^2
+kaiser_components <- sum(eigenvalues > 1)
+cat("Number of components with eigenvalue > 1:", kaiser_components, "\n")
+
+# --- Task 5: Discussion ------------------------------------------------------
+# PCA is a useful tool for reducing dimensionality and revealing structure 
+# in correlated weather variables. However, it is a variance-based linear method,
+# which makes it sensitive to outliers and extremes. In datasets like ours, where
+# extreme temperatures or precipitation values occur, these points can distort 
+# the representation of typical weather patterns. Although standardization 
+# reduces this effect, PCA still focuses on average variability rather than 
+# rare, extreme events. Therefore, while PCA is appropriate for summarizing 
+# general relationships in the data, it should be complemented with robust or 
+# tail-focused techniques when specifically analyzing extreme weather conditions.
+
+# --- Task 6: Selecting the Number of Principal Components --------------------
+# Using both Kaiser’s rule and the cumulative explained variance criterion,
+# four principal components were retained. The first four components have 
+# eigenvalues greater than 1 and together explain about 85% of the total variance,
+# indicating that they capture most of the relevant information in the dataset.
+# The scree plot shows an elbow after the second component, suggesting diminishing 
+# returns beyond PC2. This slight disagreement is common, as Kaiser’s rule tends to 
+# retain more components while the scree plot is more conservative.
+# Overall, keeping four components offers a good balance between simplicity 
+# and explanatory power.
+
+
+# --- Task 7: Biplot and Interpretation of Principal Components ---------------
+# Compute and inspect loadings
+loadings_df <-round(res$loadings[, 1:4], 2)
+
+# Interpretation:
+# How we call the PCs?
+# PC1 → Strong positive loadings for temperature and radiation variables 
+# (Tmax, Mean.temperature, Perceived.*temperature, Daylight.duration, Radiation),
+# and negative loadings for precipitation variables (Rain.sum, Precipitation.sum, Precipitation.hours).
+# → Represents a "warm/sunny/dry vs. cool/wet" weather dimension.
+#
+# PC2 → Positive loadings for precipitation and wind-related variables 
+# (Rain.sum, Precipitation.sum, Max.wind.speed, Max.wind.gusts),
+# capturing variability linked to "storminess" or unsettled weather conditions.
+#
+# PC3 and PC4 → Contain mixed and weaker contributions, reflecting minor or residual weather variations 
+# (e.g., snowfall or secondary wind effects).
+#
+# Overall, PC1 and PC2 summarize the main structure of the data, while later components 
+# are less interpretable as they capture smaller and less organized variance.
+
+# --- Task 8 (Even group)
+# The first principal component explains approximately ~48% of the total variance.
+# A moving-block bootstrap respects time dependence (vs i.i.d. bootstrap, which ignores it).
+
+# 1) Point estimate (train data)
+pc1_var <- (res$sdev[1]^2) / sum(res$sdev^2)
+pc1_var  # ≈ 0.48
+
+# 2) Moving-block bootstrap CI for PC1 proportion
+stat_pc1 <- function(x, i) {
+  xb <- x[i, , drop = FALSE]
+  p  <- try(princomp(xb, cor = TRUE), silent = TRUE)
+  if (inherits(p, "try-error")) return(NA_real_)
+  (p$sdev[1]^2) / sum(p$sdev^2)
+}
+L <- 14  # block length (~2 weeks). Robust for L in {7, 14, 21}
+B <- 1000
+bt <- tsboot(tseries = as.matrix(X_train), statistic = stat_pc1,
+             R = B, l = L, sim = "fixed")
+pc1_ci_block <- quantile(bt$t[is.finite(bt$t)], c(0.025, 0.975), na.rm = TRUE)
+pc1_ci_block
+
+# 3) Variables best explained by PC1 (squared correlation between PC1 and vars)
+corpca <- cor(X_train,res$scores)[,1]
+explained_by_pc1 <- sort(corpca^2, decreasing=TRUE)
+head(explained_by_pc1,10)
+
+# Commentary:
+# The first principal component explains ~48% of total variance.
+# Using a moving-block bootstrap (L = 14) to respect temporal dependence,
+# the 95% CI for this proportion is pc1_ci_block[1]–pc1_ci_block[2].
+# Variables best represented by PC1 (highest loading^2) are temperature- and radiation-related:
+# Tmax, Perceived.max/mean/min temperatures, Mean/Min temperature, Reference evapotranspiration,
+# Shortwave radiation, Daylight duration, and Sunshine duration.
+# This confirms PC1 captures a "warm/sunny/dry" dimension.
+# Note: naive i.i.d. bootstrap would understate uncertainty by ignoring serial correlation.
+
+# --- Task 9: Principal Component Regression (PCR) ----------------------------
+# Time-aware CV; compare CV-selected ncomp vs fixed k = 4 from Task 6
+train_pcr <- subset(train, select = -Date)
+test_pcr  <- subset(test,  select = -Date)
+
+pcr_cv <- pcr(y ~ ., data = train_pcr, scale = TRUE,
+              validation = "CV", segments = 10, segment.type = "consecutive")
+validationplot(pcr_cv, val.type = "RMSEP")
+n_cv <- selectNcomp(pcr_cv, method = "onesigma", plot = FALSE)
+
+pcr_final_cv <- pcr(y ~ ., data = train_pcr, scale = TRUE, ncomp = n_cv)
+pcr_final_k  <- pcr(y ~ ., data = train_pcr, scale = TRUE, ncomp = 4)
+
+pred_cv <- as.numeric(predict(pcr_final_cv, newdata = test_pcr, ncomp = n_cv))
+pred_k  <- as.numeric(predict(pcr_final_k,  newdata = test_pcr, ncomp = 4))
+
+rmse <- function(e) sqrt(mean(e^2))
+mae  <- function(e) mean(abs(e))
+r2   <- function(y, yhat) 1 - sum((y - yhat)^2) / sum((y - mean(y))^2)
+
+y_test <- test$y
+metrics <- list(
+  CV_ncomp = n_cv,
+  CV_RMSE  = rmse(y_test - pred_cv),
+  CV_MAE   = mae(y_test - pred_cv),
+  CV_R2    = r2(y_test, pred_cv),
+  K_used   = 4,
+  K_RMSE   = rmse(y_test - pred_k),
+  K_MAE    = mae(y_test - pred_k),
+  K_R2     = r2(y_test, pred_k)
+)
+metrics
+
+# Commentary:
+# A PCR model was fitted using 10-fold time-aware cross-validation.
+# The RMSEP plot shows a sharp decrease in error for the first few components,
+# then levels off, suggesting that most variance is captured early.
+#
+# Cross-validation selected (typically) many components (e.g., ~14),
+# while using the 4 components from PCA selection achieved very similar accuracy.
+# These results indicate that the first few components already capture 
+# most predictive information. Thus, a 4-component PCR balances simplicity 
+# and performance, aligning with the variance-explained analysis.
+
+# --- Task 10: Benchmark Multiple Linear Regression (MLR) --------------------
+lm_model <- lm(y ~ ., data = train_pcr)
+summary(lm_model)
+pred_lm  <- predict(lm_model, newdata = test_pcr)
+
+lm_metrics <- list(
+  RMSE = rmse(y_test - pred_lm),
+  MAE  = mae(y_test - pred_lm),
+  R2   = r2(y_test, pred_lm)
+)
+lm_metrics
+
+# Commentary:
+# The multiple linear regression achieved strong predictive performance (R2 ~ 0.896, RMSE ~ 2.42, MAE ~ 1.88),
+# similar to PCR. Temperature and radiation variables (Tmax, Mean.temperature, Perceived.*temperature,
+# Shortwave.radiation.sum, Daylight.duration) were highly significant, while precipitation/snowfall were mostly
+# insignificant. This indicates that maximum temperature is largely driven by thermal and solar conditions.
+# Compared to PCR, MLR performs similarly but is more sensitive to multicollinearity,
+# whereas PCR achieves comparable accuracy with fewer, uncorrelated components.
+
+# --- Task 11: Model Comparison on Test Data ----------------------------------
+
+# Combine metrics from PCR (k = 4) and MLR
+comparison <- data.frame(
+  Model = c("PCA (4 PCs)", "Multiple Linear Regression"),
+  RMSE  = c(metrics$K_RMSE, lm_metrics$RMSE),
+  MAE   = c(metrics$K_MAE,  lm_metrics$MAE),
+  R2    = c(metrics$K_R2,   lm_metrics$R2)
+)
+comparison
+
+# Visual comparison
+comparison_long <- comparison %>%
+  pivot_longer(cols = -Model, names_to = "Metric", values_to = "Value")
+
+ggplot(comparison_long, aes(x = Metric, y = Value, fill = Model)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "PCA vs. Multiple Linear Regression on Test Data",
+       subtitle = "Performance comparison on held-out period",
+       y = "Metric value") +
+  theme_minimal()
+
+# Commentary:
+# Both models perform very similarly:
+# - PCR (4 PCs):   RMSE ≈ 2.65, MAE ≈ 2.06, R² ≈ 0.88
+# - MLR (full):    RMSE ≈ 2.42, MAE ≈ 1.88, R² ≈ 0.90
+#
+# The MLR slightly outperforms PCR in predictive accuracy, likely because the dataset
+# has strong linear relationships and relatively low noise, so dimensionality reduction
+# offers little benefit here.
+#
+# However, the PCR provides an advantage in interpretability and robustness against
+# multicollinearity among predictors, which is valuable when many variables are
+# highly correlated (as in weather data).
+#
+# These results are consistent with expectations: when predictors are strongly
+# correlated but the signal is mostly linear, MLR and PCR tend to yield comparable
+# accuracy. PCR sacrifices a bit of precision for stability and parsimony.
+
+# --- Task 12: Sensitivity Analysis of PCR to Number of Components ------------
+
+# Define component counts: one fewer, one more than before
+k_values <- c(3, 4, 5)
+
+# Compute metrics for each k
+pcr_sensitivity <- data.frame()
+
+for (k in k_values) {
+  model <- pcr(y ~ ., data = train_pcr, scale = TRUE, ncomp = k)
+  preds  <- as.numeric(predict(model, newdata = test_pcr, ncomp = k))
+  rmse_k <- rmse(y_test - preds)
+  mae_k  <- mae(y_test - preds)
+  r2_k   <- r2(y_test, preds)
+  
+  pcr_sensitivity <- rbind(pcr_sensitivity,
+                           data.frame(
+                             Components = k,
+                             RMSE = rmse_k,
+                             MAE = mae_k,
+                             R2  = r2_k
+                           ))
+}
+
+pcr_sensitivity
+
+# Visualize the sensitivity
+ggplot(pcr_sensitivity, aes(x = Components, y = RMSE)) +
+  geom_line(color = "steelblue", linewidth = 1) +
+  geom_point(size = 3, color = "firebrick") +
+  labs(
+    title = "PCR Sensitivity to Number of Components",
+    subtitle = "RMSE on test data for k = 3, 4, 5",
+    y = "Test RMSE"
+  ) +
+  expand_limits(y = c(min(pcr_sensitivity$RMSE) - 0.05,
+                      max(pcr_sensitivity$RMSE) + 0.05)) +
+  theme_minimal()
+
+# --- Interpretation (Task 12) ------------------------------------------------
+# The PCR model is not highly sensitive to small changes in the number
+# of principal components. Most predictive information is already captured
+# by the first few PCs, consistent with previous PCA results (Task 6).
+#
+# Using 4 components provides the best trade-off between simplicity and
+# performance, while additional components add minimal explanatory value
+# and could start capturing noise.
+#
+# → Expected result:
+# This outcome aligns with expectations: since the first few PCs explain
+# ~85% of the variance and capture the dominant “temperature–radiation”
+# structure, the model’s predictive power stabilizes quickly beyond that point.
+
+
+# --- Task 13: Performance Across Temperature Levels --------------------------
+
+# 1) Create decile groups based on true Tmax in test data
+test_results <- data.frame(
+  True = y_test,
+  PCR_4 = pred_k,
+  MLR = pred_lm
+)
+
+test_results <- test_results %>%
+  mutate(Decile = ntile(True, 10))  # 10 roughly equal groups (10% each)
+
+# 2) Compute RMSE per decile for both models
+rmse <- function(e) sqrt(mean(e^2))
+
+group_metrics <- test_results %>%
+  group_by(Decile) %>%
+  summarise(
+    RMSE_PCR = rmse(True - PCR_4),
+    RMSE_MLR = rmse(True - MLR),
+    Mean_Temp = mean(True),
+    .groups = "drop"   
+  ) %>%
+  pivot_longer(cols = starts_with("RMSE"), names_to = "Model", values_to = "RMSE")
+
+# 3) Plot RMSE by temperature group
+ggplot(group_metrics, aes(x = Decile, y = RMSE, color = Model, group = Model)) +  #### !!!!! ISSUE WITH DECILE!!!!
+  geom_line(linewidth = 1) +
+  geom_point(size = 2) +
+  scale_color_manual(values = c("firebrick", "steelblue"),
+                     labels = c("PCR (4 PCs)", "Multiple Linear Regression")) +
+  labs(
+    title = "Model Performance by Temperature Decile (Test Data)",
+    subtitle = "RMSE across temperature ranges (lower = better)",
+    x = "Temperature decile (1 = coldest, 10 = hottest)",
+    y = "RMSE"
+  ) +
+  theme_minimal() +
+  theme(legend.title = element_blank())
+
+
+# --- Interpretation (Task 13) ------------------------------------------------
+# Prediction accuracy is strong and stable for typical temperature conditions,
+# but both models have difficulty at the extremes — which is expected, since
+# extreme weather events are rarer and harder to capture with linear methods.
+# PCR shows a small robustness advantage thanks to its use of orthogonal
+# principal components that reduce multicollinearity effects.
+
+
+```
+
+# 1. Executive Summary
+
+As part of the data science team in an energy company, our goal was to predict extreme weather conditions in Paris one day ahead to help anticipate changes in energy demand and prevent blackouts. We used 12 years of daily weather data from the CERRA database, containing 17 meteorological variables related to temperature, wind, precipitation, and radiation.
+Using Principal Component Analysis (PCA), we reduced the dataset's dimensionality and identified four key components that explained about 85% of total variance, with the first capturing roughly 48% through temperature and radiation patterns. A Principal Component Regression (PCR) model based on these components was compared with a Multiple Linear Regression (MLR) benchmark. Both performed strongly (PCR R^2 = 0.876, MLR R^2 = 0.896), with MLR slightly outperforming PCR, while PCA provided greater interpretability and robustness to multicollinearity. Overall, PCA proved valuable for summarizing complex weather data and supporting accurate next-day temperature forecasts crucial for energy planning in Paris.
+
+# 2. Data Exploration
+
+The dataset consists of 12 years (2010-2021) of daily weather observations for Paris, drawn from the CERRA reanalysis database. It includes 17 meteorological variables capturing temperature, precipitation, wind, and solar conditions, all measured with daily frequency. These variables are: mean temperature, maximum and minimum temperature, perceived temperature measures, radiation indicators, wind characteristics (speed, gusts, and direction), precipitation and snowfall measures, and daylight and sunshine duration.
+Exploratory analysis reveals strong linear relationships between temperature-related variables and next-day maximum temperature (*Appendix 1, Figure 1*), with correlation coefficients above 0.9 for Tmax, perceived temperatures, and mean temperature. Solar radiation and daylight duration also show positive correlations (corr = 0.6 to 0.8), while precipitation and wind variables exhibit weak to moderate negative correlations (corr = -0.1 to -0.3) (Appendix 1, Figure 2). These findings indicate that warm, sunny, and dry days are typically followed by higher maximum temperatures, while cooler, rainy, or windy days precede lower ones.
+The train-test split (80/20 chronological division) maintains the temporal structure of the data and ensures model evaluation on unseen, later years (*Appendix 1, Figure 3*). Overall, the dataset is well-suited for Principal Component Analysis (PCA) due to its high inter-variable correlations and clear underlying weather patterns.
+
+# 3. Methodology
+
+In order to predict extreme heat one day ahead, this report will make use of Principal Component Analysis (PCA). PCA is a method that looks for underlying relations between variables in the dataset, and subsequently constructs uncorrelated "principal components" as a mixture of different variables. Thereby, PCA reduces the dimensionality of the dataset, simplifying models while retaining most explanatory power. This has a range of advantages: complex datasets can be reduced to a small number of key factors, it removes multi-collinearity between variables, leading to better model explanatory and predictive performance, and makes for easier model interpretation and usage. PCA does have a drawback regarding its difficulty dealing with data with extremes, such as our weather prediction dataset. Since PCA looks for trends among the entire dataset, but does not have the capability to distinguish outliers, a few extreme values can distort the found relationships within the data. Also, since PCA groups data for general trends, PCA is unable to group variables specifically for extreme weather events. Therefore, PCA should be complemented with robust or tail-focused techniques when specifically analyzing extreme weather conditions.
+The report will first perform a PCA on training data, in which the best number of principal components will be decided and these principal components will be interpreted. Subsequently, the PCA's performance in weather prediction will be compared with a benchmark linear regression model, in order to see if the advantages of PCA weigh up against its disadvantages regarding extreme values in the dataset. Lastly, the sensitivity of the first PCA regression will be investigated by comparing it with PCA's with more and less PCA's, as well as with the benchmark model. 
+
+# 4. Results
+## 4.1 Amount of principal components
+Principal component analysis was performed on the training data. To select how many principal components should be chosen, various methods can be used. One method uses the scree-plot, and takes the number of principal components after which an "elbow" is visible in the graph, which coincides with a significant drop-off in variance explained by the next principal component. The scree plot, displayed in *Figure 1*, however, shows strong elbow points after principal component 2 and 6, and arguably also a weaker elbow after principal component 4. Therefore, another method should be used as well to decide the amount of principal components to include in the analysis. 
+
+```{r echo=FALSE}
+screeplot(res, main = "Scree Plot - PCA on Training Data")
+```
+
+ **Figure 1.** CAPTION + (and add axis labels)
+
+Another method to select the amount of principal components is that of Kaiser's Rule, which states that principal components should be included which have an eigenvalue, equivalent to the standard deviation explained by the principal component, of larger than 1. In our PCA, 4 principal components have an eigenvalue of larger than 1, as visible in *Figure 2*. This suggests that 4 principal components should be used in the further analysis. To further investigate the validity of this finding, permutation was performed to evaluate how large the eigenvalue of 4 principal components would be if data would be randomly distributed. The results are displayed in figure 2, and show that the first 4 principal components explain genuine variation in the data with a significantly higher eigenvalue than random data. Therefore, permutation confirmed that choosing 4 principal components is justified. 
+Thus, the different methods disagree in the amount of principal components that they include. This is common in PCA analysis, and can be explained by the difference in selection criterion: Kaiser's rule looks at the predictive capability of each principal component separately, while the elbow points discredit relative drops in explanatory power. The analysis continues with 4 principal components, since this finding is supported by Kaiser's rule and permutation, explains a large share of the variation in the data (85%), and retains simplicity through dimensionality reduction. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+invisible(capture.output(
+  paran(X_train, graph = TRUE)
+))
+```
+
+ **Figure 2.** CAPTION 
+
+## 4.2 Principal component interpretation
+By looking at how principal components were constituted, we can investigate what each principal component represents. The composition of factors is shown in *Figure 3* for principal components 1 and 2, while *Table 1* shows factor loadings for all four components. Principal components 1 represents temperature-radiation, with strong, positive factor loadings for different temperature-related variables, as well as sunlight radiation-related variables. Principal component 2 includes strong positive loadings for precipitation and to a slightly lesser extent wind-related variables, capturing variability linked to storms or other unsettled weather conditions. Component 3 could correspond to conditions with very strong winds, since it has the strongest factor loadings with windy conditions. Component 4 mainly captures winter-related variation, with strong factor loadings among snowfall and a (lack of) sunshine. However, the high factor loading of dominant wind direction is difficult to interpret in this component. 
+
+```{r echo=FALSE}
+fviz_pca_biplot(res,
+                geom.ind = "point", pointshape = 16, pointsize = 0.7, alpha.ind = 0.15,
+                col.ind = "grey70", col.var = "firebrick", repel = TRUE,
+                select.var = list(contrib = 12)  # label top 12 vars
+)
+
+```
+
+ **Figure 3.** Biplot (CAPTIOn)
+
+
+```{r loadings_stargazer, echo=FALSE, message=FALSE, warning=FALSE, results='asis'}
+library(stargazer)
+
+# Prepare the PCA loadings as a proper data frame
+loadings_df <- as.data.frame(round(res$loadings[, 1:4], 2))
+loadings_mat <- as.matrix(loadings_df)
+rownames(loadings_mat) <- rownames(loadings_df)
+
+# Output a clean LaTeX table
+stargazer(
+  loadings_mat,
+  summary = FALSE,
+  title = "",  
+  digits = 2,
+  label = "tab:loadings",
+  font.size = "small",
+  header = FALSE, 
+  float.env = "table",
+  type = "latex"
+)
+```
+
+ **Table 1.** Factor loadings (Caption)
+
+We can see that components 3 and 4 show slightly less interpretable results, which is to be expected; later components capture less of the organized variance and are therefore less clear in their underlying relationship. Also, since the interpretation of the different factor loadings is subjective, it is possible that different people interpret the principal components in different ways. Based on the clearness of their interpretation, we can see that overall, principal components 1 and 2 summarize the main structure of the data, while later components capture lesser variation, possibly linked with extreme winds and seasonal weather trends. 
+
+## 4.3 First principal component
+When further examining the first principal component, we can see that it explains around 48.1% of the total variance in the dataset. Bootstrap was used to construct a confidence interval of this amount of variance explained. Specifically, moving block bootstrap (with a block length of 14 days) was used instead of normal bootstrap, as the assumption of independent observations in normal bootstrap was violated through large autocorrelation in the dataset. Using this bootstrap method, a 95% confidence interval of (46.728%, 49.295%) was found. 
+Looking specifically at which variables are well-fitted by the first principal components, the squared correlation between the principal component and original variables was computed and displayed in *Table 2*. These show that variance in temperature-related variables was strongly explained by the first principal component, especially regarding maximum and mean temperatures with more than 90% of their variance explained. Also, radiation-measuring variables had a smaller, but still large share of their variation explained by this principal component.
+
+```{r pc1_explained_table, echo=FALSE, message=FALSE, warning=FALSE, results='asis'}
+# Prepare top 10 variables best explained by PC1
+explained_by_pc1_df <- data.frame(
+  Variable = names(head(explained_by_pc1, 10)),
+  Explained_Variance = round(head(explained_by_pc1, 10), 3),
+  stringsAsFactors = FALSE
+)
+rownames(explained_by_pc1_df) <- NULL
+
+# Generate clean LaTeX table
+stargazer(
+  explained_by_pc1_df,
+  summary = FALSE,
+  title = "",                        
+  label = "tab:pc1_explained",
+  digits = 3,
+  font.size = "small",
+  float.env = "table",
+  type = "latex",
+  header = FALSE,                    
+  table.placement = "!h",
+  align = FALSE                      
+)
+
+```
+
+ **Table 2.** Top 10 Variables Best Explained by the First Principal Component (PC1)
+
+## 4.4 Comparison of predictive capability by model
+The principal components formulated in the analysis so far were fitted in a principal component regression (PCR) on maximum temperature in the training dataset. The same was done for a multiple linear regression (MLR) including all variables as independent variables. Then, these two models were tested on the testing dataset. Their predictive performance, measured in MAE, RMSE and R^2, is reported in *Figure 4*. MLR slightly outperforms PCR in predictive accuracy, likely because the dataset has strong linear relationships and relatively low noise, so dimensionality reduction offers little benefit here. However, the PCR provides an advantage in interpretability and robustness against multicollinearity among predictors, which is valuable when many variables are highly correlated, as in the case for weather data. These results are consistent with expectations: when predictors are strongly correlated but the signal is mostly linear, MLR and PCR tend to yield comparable accuracy. PCR sacrifices a bit of precision for stability and parsimony.
+
+```{r model_comparison_table, echo=FALSE, message=FALSE, warning=FALSE, results='asis'}
+library(stargazer)
+
+# Prepare clean model comparison table
+comparison_df <- data.frame(
+  Model = c("PCA (4 PCs)", "Multiple Linear Regression"),
+  RMSE  = round(c(metrics$K_RMSE, lm_metrics$RMSE), 3),
+  MAE   = round(c(metrics$K_MAE,  lm_metrics$MAE), 3),
+  R2    = round(c(metrics$K_R2,   lm_metrics$R2), 3),
+  stringsAsFactors = FALSE
+)
+
+# Remove any row names to avoid duplication
+rownames(comparison_df) <- NULL
+
+# Generate LaTeX table (simple, clean style)
+stargazer(
+  comparison_df,
+  summary = FALSE,
+  title = "",
+  label = "tab:model_comparison",
+  digits = 3,
+  font.size = "small",
+  float.env = "table",
+  type = "latex",
+  header = FALSE,
+  table.placement = "!h",
+  align = FALSE
+)
+
+```
+
+**Figure 4.** METRICS FOR LINEAR REGRESSION AND PCA
+
+To investigate PCR sensitivity to the number of principal components, a sensitivity analysis was performed to test predictive performance among a PCR with 3 and 5 principal components, with the predictive capabilities of the three models compared in *Table 3*. The results indicate that the PCR model is not highly sensitive to small changes in the number of principal components. Most predictive information is already captured by the first principal components including "temperature-radiation" and "precipitation/storm" axes, consistent with previous PCA results as shown in the scree plot in *Figure 1*. Using 4 components provides the best trade-off between simplicity and performance with the lowest prediction error, while additional components add minimal explanatory value and could start capturing noise.
+
+```{r}
+
+```
+
+**Table 3.** RMSE, MAE, and R^2 for diff principal component number
+
+## 4.5 Predictive capability for different temperatures
+Figure 5 reports the MLR and best PCR (4 components) predictive capability for different temperature deciles. Prediction accuracy is strong and stable for typical temperature conditions, but both models have difficulty at the extremes, which is expected, since extreme weather events are rare, deviate from the general trend in the entire dataset evaluated by both MLR and PCR, and are harder to capture with linear methods. PCR does show a small robustness advantage regarding extreme temperatures, which is likely thanks to its use of orthogonal principal components that reduce multicollinearity effects.
+FIGURE 5: model performance by temperature decile
+
+
+# 5. Conclusion
+
+# 6. Appendix
+
+
+
+```{r summary_table, echo=FALSE, message=FALSE, warning=FALSE, error=FALSE, results='asis'}
+# --- Summary Table (Skygazer-style) ------------------------------------
+
+# Load required library
+library(stargazer)
+
+# Read the dataset
+data <- read.csv("a2_data_group_2.csv")
+
+# Remove index column if present
+if ("X" %in% names(data)) data <- subset(data, select = -X)
+if ("Unnamed..0" %in% names(data)) data <- subset(data, select = -Unnamed..0)
+
+# Keep only numeric variables (exclude Date and categorical columns)
+data_num <- data[sapply(data, is.numeric)]
+
+# Generate summary statistics
+stargazer(
+  data_num,
+  type = "text",         # change to "latex" or "html" if needed for PDF/HTML output
+  title = "Summary Statistics of Weather Variables (Paris, 2010–2021)",
+  digits = 2,
+  summary.stat = c("min", "p25", "median", "mean", "p75", "max", "sd"),
+  out = NULL
+)
+
+```
+
+
+
+
+
